@@ -1,7 +1,4 @@
 """
-__init__.py — data_pipeline package
+data_pipeline — PHASE A: Dataset Pipeline Package
+Handles all data loading, preprocessing, and tokenization.
 """
-from .preprocessing import *
-from .tokenizer import *
-from .dataset import *
-from .dataloader import *

@@ -1,24 +1,22 @@
 # =============================================
-# requirements.txt — Dépendances du projet
+# requirements.txt — Project Dependencies
 # =============================================
-# Installation : pip install -r requirements.txt
+# Install: pip install -r requirements.txt
 # =============================================
 
-# Deep Learning
+# Deep Learning Framework
 torch>=2.0.0
 torchvision>=0.15.0
 
-# Extraction des Key-points
-mediapipe>=0.10.0
-opencv-python>=4.8.0
-
-# Traitement des données
+# Data Processing
 numpy>=1.24.0
 pandas>=2.0.0
 
-# Évaluation (score BLEU)
+# Evaluation (BLEU Score)
 sacrebleu>=2.3.0
 
-# Utilitaires
+# Progress Bars
 tqdm>=4.65.0
+
+# Visualization (for notebooks)
 matplotlib>=3.7.0

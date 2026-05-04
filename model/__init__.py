@@ -1,7 +1,4 @@
 """
-__init__.py — model package
+model — PHASE B: Model Architecture Package
+Contains all Transformer components for the CSLT model.
 """
-from .positional_encoding import *
-from .encoder_wrapper import *
-from .decoder_wrapper import *
-from .cslt_model import *
