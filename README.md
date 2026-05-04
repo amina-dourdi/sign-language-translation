@@ -1,371 +1,373 @@
 # 🤟 Continuous Sign Language Translation (CSLT)
-### Projet de Fin d'Études (PFA) — Data Engineering & Deep Learning
+### Final Year Project (PFA) — Data Engineering & Deep Learning
 
-> **Traduction automatique de la Langue des Signes Américaine (ASL) vers le texte anglais**  
-> à partir de vidéos brutes du dataset **How2Sign**, en utilisant le Transfer Learning depuis **PHOENIX-2014T**.
-
----
-
-## 👥 Équipe & Encadrement
-
-| Rôle | Nom | Filière | École |
-|------|-----|---------|-------|
-| 🎓 Étudiante | **Amina Dourdi** | Data Engineering | ENSAH |
-| 🎓 Étudiante | **Firdawss El Haddouchi** | Data Engineering | ENSAH |
-| 🎓 Étudiante | **Oumaima El Ghalbouni** | Data Engineering | ENSAH |
-
-> 🏫 **ENSAH** — École Nationale des Sciences Appliquées d'Al Hoceima  
-> 📅 **Année universitaire** : 2025 – 2026  
-> 📌 **Module** : Deep Learning — Projet de Fin d'Études (PFA)
+> **Automatic translation of American Sign Language (ASL) into English text**  
+> from raw videos of the **How2Sign** dataset, using Transfer Learning from **PHOENIX-2014T**.
 
 ---
 
-## 📋 Table des Matières
+## 👥 Team
 
-1. [Vue d'ensemble du projet](#-vue-densemble-du-projet)
-2. [Architecture complète](#-architecture-complète)
-3. [Datasets utilisés](#-datasets-utilisés)
-4. [Stack Technique](#-stack-technique)
-5. [Structure du projet](#-structure-du-projet)
+| Role | Name | Major | School |
+|------|------|-------|--------|
+| 🎓 Student | **Amina Dourdi** | Data Engineering | ENSAH |
+| 🎓 Student | **Firdawss El Haddouchi** | Data Engineering | ENSAH |
+| 🎓 Student | **Oumaima El Ghalbouni** | Data Engineering | ENSAH |
+
+> 🏫 **ENSAH** — National School of Applied Sciences of Al Hoceima  
+> 📅 **Academic Year** : 2025 – 2026  
+> 📌 **Module** : Deep Learning
+
+---
+
+## 📋 Table of Contents
+
+1. [Project Overview](#-project-overview)
+2. [Full Architecture](#-full-architecture)
+3. [Datasets Used](#-datasets-used)
+4. [Tech Stack](#-tech-stack)
+5. [Project Structure](#-project-structure)
 6. [Phase 1 — Data Preprocessing](#-phase-1--data-preprocessing)
 7. [Phase 2 — Sanity Check](#-phase-2--sanity-check)
-8. [Phase 3 — Fine-Tuning du Modèle](#-phase-3--fine-tuning-du-modèle)
-9. [Phase 4 — Évaluation](#-phase-4--évaluation)
-10. [Installation & Lancement](#-installation--lancement)
-11. [Résultats attendus](#-résultats-attendus)
+8. [Phase 3 — Model Fine-Tuning](#-phase-3--model-fine-tuning)
+9. [Phase 4 — Evaluation](#-phase-4--evaluation)
+10. [Installation & Usage](#-installation--usage)
+11. [Expected Results](#-expected-results)
 
 ---
 
-## 🎯 Vue d'ensemble du projet
+## 🎯 Project Overview
 
-Ce projet implémente un système de **Traduction Continue de la Langue des Signes** (Continuous Sign Language Translation — CSLT) de bout en bout. L'objectif est de prendre une vidéo d'une personne pratiquant l'**ASL (American Sign Language)** et de générer automatiquement la **phrase en anglais correspondante**.
+This project implements an end-to-end **Continuous Sign Language Translation (CSLT)** system. The goal is to take a video of a person signing in **ASL (American Sign Language)** and automatically generate the **corresponding English sentence**.
 
-### Contrainte principale
-> ❌ Pas d'assemblage manuel d'encodeur et décodeur provenant de dépôts différents.  
-> ✅ Utilisation d'un modèle **End-to-End pré-entraîné** (SignJoey sur PHOENIX-2014T) adapté par **Fine-Tuning** à How2Sign.
+### Main Constraint
+> ❌ No manual assembly of encoders and decoders from different repositories.  
+> ✅ Use a **pre-trained End-to-End model** (SignJoey on PHOENIX-2014T) adapted through **Fine-Tuning** to How2Sign.
 
-### Choix technique clé : Key-points plutôt que vidéos brutes
-Au lieu d'utiliser des frames vidéo brutes (très lourdes) dans un CNN, nous utilisons **Google MediaPipe Holistic** pour extraire les **key-points du squelette** (mains, corps, visage) de chaque frame. Cela nous permet de :
-- ✅ Réduire le stockage de ~50 Go à ~500 Mo
-- ✅ Entraîner sur un simple CPU / Google Colab gratuit
-- ✅ Déployer en temps réel sur une plateforme web (pas de GPU nécessaire)
-- ✅ Rendre le modèle insensible à la couleur de vêtements ou à l'arrière-plan
+### Key Technical Choice: Key-points Instead of Raw Videos
+Instead of feeding raw video frames (very heavy) into a CNN, we use **Google MediaPipe Holistic** to extract **skeleton key-points** (hands, body, face) from each frame. This allows us to:
+- ✅ Reduce storage from ~50 GB to ~500 MB
+- ✅ Train on a regular CPU / free Google Colab
+- ✅ Deploy in real-time on a web platform (no GPU required)
+- ✅ Make the model insensitive to clothing color or background
 
 ---
 
-## 🏗️ Architecture Complète
+## 🏗️ Full Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    PIPELINE COMPLET DU PROJET                    │
+│                      FULL PROJECT PIPELINE                       │
 └─────────────────────────────────────────────────────────────────┘
 
-  [INPUT]  Vidéo brute .mp4 (How2Sign — ASL)
+  [INPUT]  Raw video .mp4 (How2Sign — ASL)
       │
       ▼
   ┌─────────────────────────────────────┐
   │  PHASE 1 : DATA PREPROCESSING       │  (preprocessing.py)
   │                                     │
-  │  1. Nettoyage & validation vidéos   │
-  │  2. MediaPipe Holistic              │  ← REMPLACE le CNN
+  │  1. Video cleaning & validation     │
+  │  2. MediaPipe Holistic              │  ← REPLACES the CNN
   │     → 543 keypoints × 3 coords     │
   │     → Format [T, 1629]             │
-  │  3. Normalisation Z-score           │
+  │  3. Z-score normalization           │
   │  4. Padding/Truncation → [200,1629] │
-  │  5. Sauvegarde en .npy              │
-  │  6. Tokenisation du texte           │
-  │     → Vocabulaire 15 000 mots      │
+  │  5. Save as .npy files              │
+  │  6. Text tokenization               │
+  │     → 15,000-word vocabulary       │
   └─────────────────────────────────────┘
       │
-      ▼  Fichiers .npy + indices de tokens
+      ▼  .npy files + token indices
   ┌─────────────────────────────────────┐
-  │  PHASE 2 : MODÈLE (Fine-Tuning)     │  (fine_tune_cslt.py)
+  │  PHASE 2 : MODEL (Fine-Tuning)      │  (fine_tune_cslt.py)
   │                                     │
   │  ┌─────────────────────────────┐    │
-  │  │ Keypoint Embedding Layer    │    │  🆕 Nouvelle couche
-  │  │ Linear(1629 → 512)          │    │  Entraînée from scratch
+  │  │ Keypoint Embedding Layer    │    │  🆕 New layer
+  │  │ Linear(1629 → 512)          │    │  Trained from scratch
   │  └────────────┬────────────────┘    │
   │               ▼                     │
   │  ┌─────────────────────────────┐    │
-  │  │ Transformer Encoder         │    │  ❄️ GELÉ
-  │  │ (SignJoey — PHOENIX-2014T)  │    │  Poids pré-entraînés
-  │  │ 6 couches, 8 têtes          │    │  conservés intacts
+  │  │ Transformer Encoder         │    │  ❄️ FROZEN
+  │  │ (SignJoey — PHOENIX-2014T)  │    │  Pre-trained weights
+  │  │ 6 layers, 8 heads           │    │  kept intact
   │  └────────────┬────────────────┘    │
   │               ▼                     │
   │  ┌─────────────────────────────┐    │
-  │  │ Transformer Decoder         │    │  🔥 FINE-TUNÉ
+  │  │ Transformer Decoder         │    │  🔥 FINE-TUNED
   │  │ (SignJoey — PHOENIX-2014T)  │    │  lr = 1e-5
   │  │ Cross-Attention             │    │
   │  └────────────┬────────────────┘    │
   │               ▼                     │
   │  ┌─────────────────────────────┐    │
-  │  │ Vocabulary Classifier       │    │  🆕 REMPLACÉE
-  │  │ Linear(512 → 15 000)        │    │  Vocabulaire How2Sign
+  │  │ Vocabulary Classifier       │    │  🆕 REPLACED
+  │  │ Linear(512 → 15,000)        │    │  How2Sign vocabulary
   │  └─────────────────────────────┘    │
   └─────────────────────────────────────┘
       │
       ▼
-  [OUTPUT]  Phrase en anglais : "The woman is walking to school"
+  [OUTPUT]  English sentence: "The woman is walking to school"
 ```
 
-### Légende
-| Symbole | Signification |
-|---------|--------------|
-| ❄️ GELÉ | Poids pré-entraînés sur PHOENIX-2014T, jamais modifiés |
-| 🔥 FINE-TUNÉ | Poids pré-entraînés mis à jour lentement (lr = 1e-5) |
-| 🆕 NOUVEAU | Couche aléatoire, entièrement entraînée sur How2Sign |
+### Legend
+| Symbol | Meaning |
+|--------|---------|
+| ❄️ FROZEN | Pre-trained weights from PHOENIX-2014T, never modified |
+| 🔥 FINE-TUNED | Pre-trained weights updated slowly (lr = 1e-5) |
+| 🆕 NEW | Randomly initialized layer, fully trained on How2Sign |
 
 ---
 
-## 📦 Datasets Utilisés
+## 📦 Datasets Used
 
-### 1. How2Sign (Dataset principal — Fine-Tuning)
-| Propriété | Valeur |
-|-----------|--------|
-| Langue | ASL — American Sign Language |
-| Contenu | ~35 000 phrases signées |
-| Stockage vidéos | ~50 Go |
-| Format annotations | `.csv` (phrases anglaises) |
-| Lien | [how2sign.github.io](https://how2sign.github.io) |
+### 1. How2Sign (Main Dataset — Fine-Tuning)
+| Property | Value |
+|----------|-------|
+| Language | ASL — American Sign Language |
+| Content | ~35,000 signed sentences |
+| Video storage | ~50 GB |
+| Annotation format | `.csv` (English sentences) |
+| Link | [how2sign.github.io](https://how2sign.github.io) |
 
-### 2. PHOENIX-2014T (Dataset du modèle pré-entraîné)
-| Propriété | Valeur |
-|-----------|--------|
-| Langue | DGS — Deutsche Gebärdensprache (Langue des Signes Allemande) |
-| Contenu | ~8 000 phrases (bulletins météo) |
-| Utilisé pour | Pré-entraînement de SignJoey |
-| Lien | [phoenix.ira.uka.de](https://www-i6.informatik.rwth-aachen.de/~koller/RWTH-PHOENIX/) |
-
----
-
-## 🛠️ Stack Technique
-
-| Domaine | Technologie | Rôle |
-|---------|------------|------|
-| Deep Learning | **PyTorch** | Framework principal |
-| Architecture | **SignJoey** (`neccam/slt`) | Modèle Seq2Seq pré-entraîné |
-| Extraction Keypoints | **Google MediaPipe Holistic** | Remplace le CNN |
-| Vision | **OpenCV** | Lecture des vidéos frame par frame |
-| Data | **NumPy** | Sauvegarde des key-points (.npy) |
-| Évaluation | **SacreBLEU** | Métrique de traduction |
-| Environnement | **Python 3.9+** | Langage de développement |
+### 2. PHOENIX-2014T (Pre-trained Model Dataset)
+| Property | Value |
+|----------|-------|
+| Language | DGS — Deutsche Gebärdensprache (German Sign Language) |
+| Content | ~8,000 sentences (weather forecasts) |
+| Used for | Pre-training SignJoey |
+| Link | [phoenix.ira.uka.de](https://www-i6.informatik.rwth-aachen.de/~koller/RWTH-PHOENIX/) |
 
 ---
 
-## 📁 Structure du Projet
+## 🛠️ Tech Stack
+
+| Domain | Technology | Role |
+|--------|-----------|------|
+| Deep Learning | **PyTorch** | Main framework |
+| Architecture | **SignJoey** (`neccam/slt`) | Pre-trained Seq2Seq model |
+| Keypoint Extraction | **Google MediaPipe Holistic** | Replaces the CNN |
+| Vision | **OpenCV** | Reading videos frame by frame |
+| Data | **NumPy** | Saving key-points (.npy files) |
+| Evaluation | **SacreBLEU** | Translation metric |
+| Environment | **Python 3.9+** | Development language |
+
+---
+
+## 📁 Project Structure
 
 ```
 sign-language-translation/
 │
-├── 📄 README.md                  ← Ce fichier
-├── 📄 requirements.txt           ← Dépendances Python
+├── 📄 README.md                  ← This file
+├── 📄 requirements.txt           ← Python dependencies
 ├── 📄 .gitignore
 │
-├── 🔬 sanity_check.py            ← ÉTAPE 1 : Valider l'architecture (aucun dataset requis)
-├── ⚙️  preprocessing.py           ← ÉTAPE 2 : Extraire les keypoints des vidéos
-├── 🚀 fine_tune_cslt.py          ← ÉTAPE 3 : Fine-Tuning du modèle
+├── 🔬 sanity_check.py            ← STEP 1: Validate the architecture (no dataset needed)
+├── ⚙️  preprocessing.py           ← STEP 2: Extract keypoints from videos
+├── 🚀 fine_tune_cslt.py          ← STEP 3: Fine-tune the model
 │
 ├── 📂 data/
-│   ├── raw/                      ← Vidéos brutes How2Sign (.mp4)
-│   ├── keypoints/                ← Keypoints extraits (.npy) — générés par preprocessing.py
-│   └── annotations/              ← Fichiers .csv des traductions anglaises
+│   ├── raw/                      ← Raw How2Sign videos (.mp4)
+│   ├── keypoints/                ← Extracted keypoints (.npy) — generated by preprocessing.py
+│   └── annotations/              ← .csv files with English translations
 │
 ├── 📂 models/
-│   ├── pretrained/               ← Poids SignJoey pré-entraîné sur PHOENIX-2014T (.ckpt)
-│   └── finetuned/                ← Poids sauvegardés après le Fine-Tuning
+│   ├── pretrained/               ← SignJoey weights pre-trained on PHOENIX-2014T (.ckpt)
+│   └── finetuned/                ← Weights saved after Fine-Tuning
 │
 └── 📂 outputs/
-    └── predictions.txt           ← Traductions générées (pour l'évaluation BLEU)
+    └── predictions.txt           ← Generated translations (for BLEU evaluation)
 ```
 
 ---
 
 ## ⚙️ Phase 1 — Data Preprocessing
 
-> **Fichier :** `preprocessing.py`  
-> **Dataset requis :** ✅ Vidéos How2Sign
+> **File:** `preprocessing.py`  
+> **Dataset required:** ✅ How2Sign videos
 
-Cette phase est exécutée **une seule fois** sur tout le dataset. Elle transforme les vidéos brutes `.mp4` en tableaux numériques `.npy` qui représentent les mouvements du squelette de la personne.
+This phase is run **once** on the entire dataset. It transforms raw `.mp4` videos into numerical `.npy` arrays representing the skeleton movements of the signer.
 
-### Étapes détaillées
+### Detailed Steps
 
-**Étape 1 — Nettoyage des vidéos**
-- Vérifier que chaque vidéo peut être ouverte (pas corrompue)
-- Rejeter les vidéos trop courtes (< 10 frames)
-- Convertir BGR → RGB (OpenCV vers MediaPipe)
+**Step 1 — Video Cleaning**
+- Check that each video can be opened (not corrupted)
+- Reject videos that are too short (< 10 frames)
+- Convert BGR → RGB (OpenCV to MediaPipe format)
 
-**Étape 2 — Extraction des Key-points (MediaPipe Holistic)**
-- Pour chaque frame : extraire 543 points anatomiques
-  - 33 points du corps (épaules, bras, hanches...)
-  - 21 points de la main gauche (toutes les articulations des doigts)
-  - 21 points de la main droite
-  - 468 points du maillage facial (bouche, yeux, sourcils)
-- Si un point n'est pas détecté → remplacer par zéros `(0, 0, 0)`
-- Format de sortie : `[T, 543, 3]` → aplati en `[T, 1629]`
+**Step 2 — Keypoint Extraction (MediaPipe Holistic)**
+- For each frame: extract 543 anatomical keypoints
+  - 33 body pose points (shoulders, arms, hips...)
+  - 21 left hand points (all finger joints)
+  - 21 right hand points (all finger joints)
+  - 468 face mesh points (mouth, eyes, eyebrows)
+  - Each point has 3 values: (x, y, z) coordinates
+- If a keypoint is not detected → replace with zeros `(0, 0, 0)`
+- Output per frame: 543 × 3 = **1,629 numerical values**
+- Output for a full video: tensor of shape **[T, 1629]**
 
-**Étape 3 — Normalisation**
-- Méthode : Z-score (soustraction de la moyenne, division par l'écart-type)
-- Objectif : rendre le modèle invariant à la taille du signeur et à la distance caméra
+**Step 3 — Normalization**
+- Method: Z-score standardization (subtract mean, divide by std)
+- Goal: make the model invariant to the signer's height and camera distance
 
-**Étape 4 — Uniformisation des longueurs**
-- Longueur fixe : **200 frames** pour toutes les vidéos
-- Si trop longue → tronquée à 200 frames
-- Si trop courte → complétée avec des zéros (zero-padding)
-- Création d'un **masque de padding** (1=donnée réelle, 0=padding)
+**Step 4 — Sequence Length Uniformization**
+- Fixed length: **200 frames** for all videos
+- If too long → truncate to 200 frames
+- If too short → zero-pad at the end
+- Create a **padding mask** (1 = real data, 0 = padding)
 
-**Étape 5 — Sauvegarde**
-- Un fichier `.npy` par vidéo dans `data/keypoints/`
-- Format final : tableau de forme `(200, 1629)` par vidéo
+**Step 5 — Save**
+- One `.npy` file per video in `data/keypoints/`
+- Final shape: array of `(200, 1629)` per video
 
-**Étape 6 — Tokenisation du texte**
-- Construction d'un vocabulaire de **15 000 mots** les plus fréquents
-- Tokens spéciaux : `<PAD>=0`, `<SOS>=1`, `<EOS>=2`, `<UNK>=3`
-- Conversion de chaque phrase anglaise en liste d'indices entiers
+**Step 6 — Text Tokenization**
+- Build a vocabulary of the **15,000 most frequent words** from How2Sign
+- Special tokens: `<PAD>=0`, `<SOS>=1`, `<EOS>=2`, `<UNK>=3`
+- Convert each English sentence into a list of integer indices
 
 ---
 
 ## 🔬 Phase 2 — Sanity Check
 
-> **Fichier :** `sanity_check.py`  
-> **Dataset requis :** ❌ Aucun — utilise des données aléatoires
+> **File:** `sanity_check.py`  
+> **Dataset required:** ❌ None — uses randomly generated data
 
-Cette phase valide que l'architecture est correcte **avant** de lancer le vrai entraînement. Elle doit être exécutée en premier.
+This phase validates that the architecture is correct **before** launching real training. It must be run first.
 
 ```bash
 python sanity_check.py
 ```
 
-### Tests effectués
+### Tests Performed
 
-| Test | Description | Condition de succès |
-|------|-------------|-------------------|
-| **Test 1** — Forward Pass | Vérifie les dimensions de tous les tenseurs | `logits.shape == [4, 50, 15000]` |
-| **Test 2** — Overfit 1 Batch | Vérifie que la backpropagation fonctionne | Réduction de loss > 80% en 100 epochs |
-| **Test 3** — Freeze des couches | Vérifie que le gel de l'encodeur est actif | `paramètres gelés > 0` |
-| **Test 4** — Remplacement classifieur | Vérifie le nouveau classifieur How2Sign | `out_features == 15 000` |
+| Test | Description | Success Condition |
+|------|-------------|------------------|
+| **Test 1** — Forward Pass | Checks all tensor dimensions across layers | `logits.shape == [4, 50, 15000]` |
+| **Test 2** — Overfit 1 Batch | Checks that backpropagation works | Loss reduction > 80% in 100 epochs |
+| **Test 3** — Layer Freezing | Checks that encoder freezing is active | `frozen params > 0` |
+| **Test 4** — Classifier Replacement | Checks the new How2Sign classifier | `out_features == 15,000` |
 
-### Résultat attendu
+### Expected Output
 ```
-✅ RÉUSSI  →  Test 1 — Forward Pass
-✅ RÉUSSI  →  Test 2 — Overfit 1 Batch
-✅ RÉUSSI  →  Test 3 — Freeze des couches
-✅ RÉUSSI  →  Test 4 — Remplacement couche
+✅ PASSED  →  Test 1 — Forward Pass
+✅ PASSED  →  Test 2 — Overfit 1 Batch
+✅ PASSED  →  Test 3 — Layer Freezing
+✅ PASSED  →  Test 4 — Classifier Replacement
 
-🎉 ARCHITECTURE VALIDÉE — Vous pouvez lancer le Fine-Tuning !
+🎉 ARCHITECTURE VALIDATED — You can now launch Fine-Tuning!
 ```
 
 ---
 
-## 🚀 Phase 3 — Fine-Tuning du Modèle
+## 🚀 Phase 3 — Model Fine-Tuning
 
-> **Fichier :** `fine_tune_cslt.py`  
-> **Dataset requis :** ✅ Fichiers `.npy` générés par preprocessing.py
+> **File:** `fine_tune_cslt.py`  
+> **Dataset required:** ✅ `.npy` files generated by preprocessing.py
 
-### Stratégie de Fine-Tuning
+### Fine-Tuning Strategy
 
 ```
-Modèle source  : SignJoey pré-entraîné sur PHOENIX-2014T (DGS)
-Modèle cible   : SignJoey fine-tuné sur How2Sign (ASL)
+Source model : SignJoey pre-trained on PHOENIX-2014T (DGS)
+Target model : SignJoey fine-tuned on How2Sign (ASL)
 ```
 
-| Composant | Stratégie | Learning Rate |
-|-----------|-----------|---------------|
-| Keypoint Embedding | Entraîné from scratch | `1e-3` |
-| Transformer Encoder | ❄️ Gelé (FROZEN) | `0` (pas mis à jour) |
-| Transformer Decoder | 🔥 Fine-tuné | `1e-5` |
-| Vocabulary Classifier | 🆕 Remplacé + entraîné | `1e-3` |
+| Component | Strategy | Learning Rate |
+|-----------|----------|---------------|
+| Keypoint Embedding | Trained from scratch | `1e-3` |
+| Transformer Encoder | ❄️ Frozen | `0` (not updated) |
+| Transformer Decoder | 🔥 Fine-tuned | `1e-5` |
+| Vocabulary Classifier | 🆕 Replaced + trained | `1e-3` |
 
-### Paramètres d'entraînement recommandés
+### Recommended Training Parameters
 ```python
 EPOCHS          = 30
 BATCH_SIZE      = 16
-LEARNING_RATE   = 1e-4    # Pour les couches non gelées
+LEARNING_RATE   = 1e-4    # For unfrozen layers
 OPTIMIZER       = Adam
 LOSS            = CrossEntropyLoss(ignore_index=PAD_IDX)
 SCHEDULER       = ReduceLROnPlateau(patience=3)
 ```
 
-### Lancement
+### Launch
 ```bash
 python fine_tune_cslt.py
 ```
 
 ---
 
-## 📊 Phase 4 — Évaluation
+## 📊 Phase 4 — Evaluation
 
-Le modèle est évalué sur un jeu de test (vidéos non vues pendant l'entraînement) à l'aide de la métrique standard en traduction automatique :
+The model is evaluated on a held-out test set (videos not seen during training) using the standard machine translation metric:
 
 ### BLEU Score (Bilingual Evaluation Understudy)
-- **BLEU-1** : Précision des mots individuels
-- **BLEU-4** : Précision des séquences de 4 mots consécutifs
-- Score entre 0 et 1 (ou 0 à 100)
+- **BLEU-1**: Precision on individual words
+- **BLEU-4**: Precision on sequences of 4 consecutive words
+- Score between 0 and 100
 
-| Score BLEU-4 | Interprétation |
+| BLEU-4 Score | Interpretation |
 |-------------|----------------|
-| < 10 | Traduction incompréhensible |
-| 10 – 20 | Traduction partielle, idée comprise |
-| 20 – 30 | Traduction correcte (standard recherche CSLT) |
-| > 30 | Traduction de haute qualité |
+| < 10 | Incomprehensible translation |
+| 10 – 20 | Partial translation, idea understood |
+| 20 – 30 | Correct translation (CSLT research standard) |
+| > 30 | High-quality translation |
 
-> 📌 Les modèles CSLT état de l'art sur PHOENIX-2014T atteignent ~25 BLEU-4.
+> 📌 State-of-the-art CSLT models on PHOENIX-2014T achieve ~25 BLEU-4.
 
 ---
 
-## 💻 Installation & Lancement
+## 💻 Installation & Usage
 
-### 1. Cloner le dépôt
+### 1. Clone the repository
 ```bash
 git clone https://github.com/amina-dourdi/sign-language-translation.git
 cd sign-language-translation
 ```
 
-### 2. Créer l'environnement virtuel
+### 2. Create a virtual environment
 ```bash
 python -m venv venv
 venv\Scripts\activate        # Windows
 # source venv/bin/activate   # Linux / Mac
 ```
 
-### 3. Installer les dépendances
+### 3. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Ordre d'exécution des scripts
+### 4. Execution Order
 
 ```bash
-# ÉTAPE 1 : Valider l'architecture (sans données)
+# STEP 1: Validate the architecture (no data needed)
 python sanity_check.py
 
-# ÉTAPE 2 : Extraire les keypoints des vidéos How2Sign
+# STEP 2: Extract keypoints from How2Sign videos
 python preprocessing.py
 
-# ÉTAPE 3 : Lancer le Fine-Tuning
+# STEP 3: Launch Fine-Tuning
 python fine_tune_cslt.py
 ```
 
 ---
 
-## 🎯 Résultats Attendus
+## 🎯 Expected Results
 
-À la fin du projet, le système doit être capable de :
+By the end of the project, the system should be able to:
 
-1. **Prendre en entrée** une vidéo `.mp4` d'une personne signant en ASL
-2. **Extraire automatiquement** les key-points du squelette avec MediaPipe
-3. **Traduire** la séquence de mouvements en une phrase anglaise cohérente
-4. **Afficher** la traduction sur une interface utilisateur (plateforme web)
+1. **Take as input** a `.mp4` video of a person signing in ASL
+2. **Automatically extract** skeleton key-points using MediaPipe
+3. **Translate** the sequence of movements into a coherent English sentence
+4. **Display** the translation on a user interface (web platform)
 
-### Exemple
+### Example
 ```
-Entrée  : [Vidéo de 3 secondes — personne signant "walk to school"]
-Sortie  : "The girl is walking to school"
-BLEU-4  : ~22 (objectif du projet)
+Input  : [3-second video — person signing "walk to school"]
+Output : "The girl is walking to school"
+BLEU-4 : ~22 (project target)
 ```
 
 ---
 
-## 📚 Références
+## 📚 References
 
 - **Camgoz et al. (2020)** — *Sign Language Transformers: Joint End-to-end Sign Language Recognition and Translation* — [arxiv.org/abs/2003.13830](https://arxiv.org/abs/2003.13830)
 - **How2Sign Dataset** — [how2sign.github.io](https://how2sign.github.io)
@@ -377,6 +379,6 @@ BLEU-4  : ~22 (objectif du projet)
 
 <div align="center">
 
-**🤟 Continuous Sign Language Translation — PFA 2025/2026**
+**🤟 Continuous Sign Language Translation — Final Year Project 2025/2026**
 
 </div>
