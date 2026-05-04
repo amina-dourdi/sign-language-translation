@@ -16,7 +16,7 @@
 
 > 🏫 **ENSAH** — École Nationale des Sciences Appliquées d'Al Hoceima  
 > 📅 **Année universitaire** : 2025 – 2026  
-> 📌 **Module** : Deep Learning — Projet de Fin d'Études (PFA)
+> 📌 **Module** : Deep Learning
 
 ---
 
