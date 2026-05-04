@@ -201,58 +201,55 @@ sign-language-translation/
 
 ---
 
-## ⚙️ Phase 1 — Data Preprocessing
+## ⚙️ Phase 1 — Data Preprocessing (PHASE A)
 
-> **File:** `preprocessing.py`  
-> **Dataset required:** ✅ How2Sign videos
+> **Package:** `data_pipeline/`  
+> **Data required:** ✅ How2Sign B-F-H 2D Keypoints (test set: 1.6 GB)
 
-This phase is run **once** on the entire dataset. It transforms raw `.mp4` videos into numerical `.npy` arrays representing the skeleton movements of the signer.
+We use the **pre-extracted OpenPose keypoints** provided by How2Sign (B-F-H = Body, Face, Hands). This avoids downloading the 290 GB raw videos.
 
-### Detailed Steps
+### Files in this phase
 
-**Step 1 — Video Cleaning**
-- Check that each video can be opened (not corrupted)
-- Reject videos that are too short (< 10 frames)
-- Convert BGR → RGB (OpenCV to MediaPipe format)
+| File | Role |
+|------|------|
+| `data_pipeline/preprocessing.py` | Read OpenPose JSON files, normalize, pad to 150 frames, save as `.npy` |
+| `data_pipeline/tokenizer.py` | Build English vocabulary (10,000 words), encode/decode sentences |
+| `data_pipeline/dataset.py` | PyTorch Dataset class (loads `.npy` + tokenized labels) |
+| `data_pipeline/dataloader.py` | Create Train / Val / Test DataLoaders (80/10/10 split) |
 
-**Step 2 — Keypoint Extraction (MediaPipe Holistic)**
-- For each frame: extract 543 anatomical keypoints
-  - 33 body pose points (shoulders, arms, hips...)
-  - 21 left hand points (all finger joints)
-  - 21 right hand points (all finger joints)
-  - 468 face mesh points (mouth, eyes, eyebrows)
-  - Each point has 3 values: (x, y, z) coordinates
-- If a keypoint is not detected → replace with zeros `(0, 0, 0)`
-- Output per frame: 543 × 3 = **1,629 numerical values**
-- Output for a full video: tensor of shape **[T, 1629]**
+### Keypoint Format (OpenPose)
+| Keypoint Group | Count | Features |
+|---------------|-------|----------|
+| Body (pose) | 25 keypoints × 3 (x, y, conf) | 75 |
+| Face | 70 keypoints × 3 | 210 |
+| Left hand | 21 keypoints × 3 | 63 |
+| Right hand | 21 keypoints × 3 | 63 |
+| **Total per frame** | **137 keypoints** | **411 features** |
 
-**Step 3 — Normalization**
-- Method: Z-score standardization (subtract mean, divide by std)
-- Goal: make the model invariant to the signer's height and camera distance
+### Pipeline Steps
+1. **Read** OpenPose JSON files from each clip folder
+2. **Normalize** with Z-score standardization
+3. **Pad/Truncate** all clips to **150 frames** → shape `[150, 411]`
+4. **Save** as `.npy` files in `data/processed/keypoints/`
+5. **Build vocabulary** from English annotations (special tokens: `<PAD>=0`, `<SOS>=1`, `<EOS>=2`, `<UNK>=3`)
 
-**Step 4 — Sequence Length Uniformization**
-- Fixed length: **200 frames** for all videos
-- If too long → truncate to 200 frames
-- If too short → zero-pad at the end
-- Create a **padding mask** (1 = real data, 0 = padding)
+### Execute
+```bash
+# Step 1: Preprocess keypoints
+python -m data_pipeline.preprocessing
 
-**Step 5 — Save**
-- One `.npy` file per video in `data/keypoints/`
-- Final shape: array of `(200, 1629)` per video
-
-**Step 6 — Text Tokenization**
-- Build a vocabulary of the **15,000 most frequent words** from How2Sign
-- Special tokens: `<PAD>=0`, `<SOS>=1`, `<EOS>=2`, `<UNK>=3`
-- Convert each English sentence into a list of integer indices
+# Step 2: Build tokenizer vocabulary
+python -m data_pipeline.tokenizer
+```
 
 ---
 
 ## 🔬 Phase 2 — Sanity Check
 
 > **File:** `sanity_check.py`  
-> **Dataset required:** ❌ None — uses randomly generated data
+> **Data required:** ❌ None — uses randomly generated data
 
-This phase validates that the architecture is correct **before** launching real training. It must be run first.
+Validates that the architecture works correctly **before** any training.
 
 ```bash
 python sanity_check.py
@@ -260,69 +257,93 @@ python sanity_check.py
 
 ### Tests Performed
 
-| Test | Description | Success Condition |
-|------|-------------|------------------|
-| **Test 1** — Forward Pass | Checks all tensor dimensions across layers | `logits.shape == [4, 50, 15000]` |
-| **Test 2** — Overfit 1 Batch | Checks that backpropagation works | Loss reduction > 80% in 100 epochs |
-| **Test 3** — Layer Freezing | Checks that encoder freezing is active | `frozen params > 0` |
-| **Test 4** — Classifier Replacement | Checks the new How2Sign classifier | `out_features == 15,000` |
+| # | Test | What it checks | Success Condition |
+|---|------|---------------|-------------------|
+| 1 | **Forward Pass** | Tensor dimensions through all layers | `logits.shape == [4, 19, 500]` |
+| 2 | **Overfit Batch** | Backpropagation and gradient flow | Loss decreases > 50% in 50 steps |
+| 3 | **Encoder Freeze** | Transfer learning freeze mechanism | Encoder params unchanged after training step |
+| 4 | **Greedy Decoding** | Autoregressive inference pipeline | Generated sequence starts with `<SOS>` |
+| 5 | **Parameter Count** | Trainable vs frozen parameters | Trainable < total after freeze |
 
 ### Expected Output
 ```
-✅ PASSED  →  Test 1 — Forward Pass
-✅ PASSED  →  Test 2 — Overfit 1 Batch
-✅ PASSED  →  Test 3 — Layer Freezing
-✅ PASSED  →  Test 4 — Classifier Replacement
-
-🎉 ARCHITECTURE VALIDATED — You can now launch Fine-Tuning!
+╔═══════════════════════════════════════════════════════╗
+║           FINAL SUMMARY                               ║
+╠═══════════════════════════════════════════════════════╣
+║  ✅ PASS  │  Forward Pass                             ║
+║  ✅ PASS  │  Overfit Batch                            ║
+║  ✅ PASS  │  Encoder Freeze                           ║
+║  ✅ PASS  │  Greedy Decoding                          ║
+║  ✅ PASS  │  Parameter Count                          ║
+╠═══════════════════════════════════════════════════════╣
+║   🎉 ALL TESTS PASSED — Architecture is valid!       ║
+╚═══════════════════════════════════════════════════════╝
 ```
 
 ---
 
-## 🚀 Phase 3 — Model Fine-Tuning
+## 🚀 Phase 3 — Model Fine-Tuning (PHASE B + C)
 
-> **File:** `fine_tune_cslt.py`  
-> **Dataset required:** ✅ `.npy` files generated by preprocessing.py
+> **Package:** `model/` + `training/`  
+> **Data required:** ✅ Preprocessed `.npy` files from Phase 1
 
-### Fine-Tuning Strategy
+### Model Architecture (PHASE B)
 
-```
-Source model : SignJoey pre-trained on PHOENIX-2014T (DGS)
-Target model : SignJoey fine-tuned on How2Sign (ASL)
-```
+| File | Component | Role |
+|------|-----------|------|
+| `model/positional_encoding.py` | Positional Encoding | Sin/cos temporal signals for Transformer |
+| `model/encoder_wrapper.py` | Encoder ❄️ | Keypoint embedding + Transformer Encoder (FROZEN) |
+| `model/decoder_wrapper.py` | Decoder 🔥 | Token embedding + Transformer Decoder + Output |
+| `model/cslt_model.py` | Full CSLT Model | Assembles all components into one module |
+
+### Transfer Learning Strategy
 
 | Component | Strategy | Learning Rate |
 |-----------|----------|---------------|
-| Keypoint Embedding | Trained from scratch | `1e-3` |
+| Keypoint Embedding | 🆕 Trained from scratch | `1e-4` |
 | Transformer Encoder | ❄️ Frozen | `0` (not updated) |
-| Transformer Decoder | 🔥 Fine-tuned | `1e-5` |
-| Vocabulary Classifier | 🆕 Replaced + trained | `1e-3` |
+| Transformer Decoder | 🔥 Fine-tuned | `1e-4` |
+| Output Projection | 🆕 New (10,000 English classes) | `1e-4` |
 
-### Recommended Training Parameters
+### Training Pipeline (PHASE C)
+
+| File | Role |
+|------|------|
+| `training/train.py` | Main training loop with validation + early stopping |
+| `training/loss.py` | CrossEntropyLoss (ignores `<PAD>`, label smoothing) |
+| `training/metrics.py` | BLEU-1 to BLEU-4 score computation |
+| `training/inference.py` | Translate new videos (production/demo mode) |
+
+### Training Configuration
 ```python
-EPOCHS          = 30
-BATCH_SIZE      = 16
-LEARNING_RATE   = 1e-4    # For unfrozen layers
-OPTIMIZER       = Adam
-LOSS            = CrossEntropyLoss(ignore_index=PAD_IDX)
-SCHEDULER       = ReduceLROnPlateau(patience=3)
+EPOCHS              = 30
+BATCH_SIZE          = 8
+ENCODER_LR          = 1e-5       # Slow (pre-trained)
+DECODER_LR          = 1e-4       # Fast (new layers)
+OPTIMIZER           = AdamW
+LOSS                = CrossEntropyLoss(ignore_index=0, label_smoothing=0.1)
+SCHEDULER           = ReduceLROnPlateau(patience=3)
+EARLY_STOPPING      = patience=5
+GRADIENT_CLIPPING   = max_norm=1.0
 ```
 
-### Launch
+### Execute
 ```bash
-python fine_tune_cslt.py
+# Launch training
+python -m training.train
+
+# Run inference on a single file
+python -m training.inference --input data/processed/keypoints/clip.npy
+
+# Run inference on a directory
+python -m training.inference --input data/processed/keypoints/
 ```
 
 ---
 
 ## 📊 Phase 4 — Evaluation
 
-The model is evaluated on a held-out test set (videos not seen during training) using the standard machine translation metric:
-
-### BLEU Score (Bilingual Evaluation Understudy)
-- **BLEU-1**: Precision on individual words
-- **BLEU-4**: Precision on sequences of 4 consecutive words
-- Score between 0 and 100
+The model is evaluated automatically at the end of training using the **BLEU score**:
 
 | BLEU-4 Score | Interpretation |
 |-------------|----------------|
@@ -355,17 +376,27 @@ venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
-### 4. Execution Order
+### 4. Download Data
+Download from [How2Sign](https://how2sign.github.io):
+- **B-F-H 2D Keypoints clips (frontal view)** → TEST (1.6 GB) → place in `data/keypoints/`
+- **English Translation (manually re-aligned)** → TEST (424K) → place in `data/annotations/`
 
+### 5. Complete Execution Pipeline
 ```bash
-# STEP 1: Validate the architecture (no data needed)
+# STEP 0: Validate architecture (no data needed)
 python sanity_check.py
 
-# STEP 2: Extract keypoints from How2Sign videos
-python preprocessing.py
+# STEP 1: Preprocess keypoints (JSON → .npy)
+python -m data_pipeline.preprocessing
 
-# STEP 3: Launch Fine-Tuning
-python fine_tune_cslt.py
+# STEP 2: Build vocabulary
+python -m data_pipeline.tokenizer
+
+# STEP 3: Train the model
+python -m training.train
+
+# STEP 4: Translate new videos
+python -m training.inference --input data/processed/keypoints/
 ```
 
 ---
@@ -374,15 +405,15 @@ python fine_tune_cslt.py
 
 By the end of the project, the system should be able to:
 
-1. **Take as input** a `.mp4` video of a person signing in ASL
-2. **Automatically extract** skeleton key-points using MediaPipe
+1. **Take as input** pre-extracted keypoints from an ASL video
+2. **Process** the skeleton key-points through a Transformer encoder
 3. **Translate** the sequence of movements into a coherent English sentence
-4. **Display** the translation on a user interface (web platform)
+4. **Evaluate** translation quality using BLEU-4 score
 
 ### Example
 ```
-Input  : [3-second video — person signing "walk to school"]
-Output : "The girl is walking to school"
+Input  : [150 frames of OpenPose keypoints — person signing "walk to school"]
+Output : "the girl is walking to school"
 BLEU-4 : ~22 (project target)
 ```
 
@@ -393,7 +424,7 @@ BLEU-4 : ~22 (project target)
 - **Camgoz et al. (2020)** — *Sign Language Transformers: Joint End-to-end Sign Language Recognition and Translation* — [arxiv.org/abs/2003.13830](https://arxiv.org/abs/2003.13830)
 - **How2Sign Dataset** — [how2sign.github.io](https://how2sign.github.io)
 - **SignJoey (neccam/slt)** — [github.com/neccam/slt](https://github.com/neccam/slt)
-- **MediaPipe Holistic** — [google.github.io/mediapipe](https://google.github.io/mediapipe/solutions/holistic.html)
+- **OpenPose** — [github.com/CMU-Perceptual-Computing-Lab/openpose](https://github.com/CMU-Perceptual-Computing-Lab/openpose)
 - **PHOENIX-2014T** — [RWTH Aachen University](https://www-i6.informatik.rwth-aachen.de/~koller/RWTH-PHOENIX/)
 
 ---

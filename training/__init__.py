@@ -1,5 +1,4 @@
 """
-__init__.py — training package
+training — PHASE C: Training & Evaluation Package
+Contains training loop, loss function, metrics, and inference.
 """
-from .loss import *
-from .metrics import *
