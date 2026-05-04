@@ -1,5 +1,5 @@
 # 🤟 Continuous Sign Language Translation (CSLT)
-### Final Year Project (PFA) — Data Engineering & Deep Learning
+### Academic Project — Deep Learning Module | Data Engineering
 
 > **Automatic translation of American Sign Language (ASL) into English text**  
 > from raw videos of the **How2Sign** dataset, using Transfer Learning from **PHOENIX-2014T**.
@@ -14,13 +14,8 @@
 | 🎓 Student | **Firdawss El Haddouchi** | Data Engineering | ENSAH |
 | 🎓 Student | **Oumaima El Ghalbouni** | Data Engineering | ENSAH |
 
-<<<<<<< HEAD
 > 🏫 **ENSAH** — National School of Applied Sciences of Al Hoceima  
 > 📅 **Academic Year** : 2025 – 2026  
-=======
-> 🏫 **ENSAH** — École Nationale des Sciences Appliquées d'Al Hoceima  
-> 📅 **Année universitaire** : 2025 – 2026  
->>>>>>> 84447c95210514168783733bba0fd0b413c96668
 > 📌 **Module** : Deep Learning
 
 ---
@@ -384,6 +379,6 @@ BLEU-4 : ~22 (project target)
 
 <div align="center">
 
-**🤟 Continuous Sign Language Translation — Final Year Project 2025/2026**
+**🤟 Continuous Sign Language Translation — Deep Learning Project 2025/2026**
 
 </div>
