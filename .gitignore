@@ -1,0 +1,18 @@
+# Environnements et caches Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Build Java / Spring Boot
+target/
+*.class
+
+# Variables d'environnement et IDE
+.env
+.idea/
+.vscode/
+*.log
+
+test/
+data/
