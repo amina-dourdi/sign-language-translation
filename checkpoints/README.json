@@ -1,0 +1,8 @@
+{
+  "description": "Ce dossier contient les poids du modèle SignJoey pré-entraîné (PHOENIX-2014T) et les checkpoints sauvegardés pendant le Fine-Tuning sur How2Sign.",
+  "contents": {
+    "phoenix14t.ckpt": "Poids pré-entraînés SignJoey — à télécharger depuis github.com/neccam/slt",
+    "best_model_how2sign.pth": "Meilleur modèle après Fine-Tuning — généré par training/train.py",
+    "checkpoint_epoch_N.pth": "Checkpoints intermédiaires — générés pendant l'entraînement"
+  }
+}

@@ -1,0 +1,24 @@
+# =============================================
+# requirements.txt — Dépendances du projet
+# =============================================
+# Installation : pip install -r requirements.txt
+# =============================================
+
+# Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Extraction des Key-points
+mediapipe>=0.10.0
+opencv-python>=4.8.0
+
+# Traitement des données
+numpy>=1.24.0
+pandas>=2.0.0
+
+# Évaluation (score BLEU)
+sacrebleu>=2.3.0
+
+# Utilitaires
+tqdm>=4.65.0
+matplotlib>=3.7.0

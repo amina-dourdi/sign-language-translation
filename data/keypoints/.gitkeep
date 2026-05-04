@@ -1,0 +1,4 @@
+# Ce dossier contiendra les key-points extraits par preprocessing.py
+# Format : un fichier .npy par vidéo
+# Shape de chaque fichier : (200, 1629)
+# Généré automatiquement par : python preprocessing.py

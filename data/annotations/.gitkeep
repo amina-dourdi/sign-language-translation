@@ -1,0 +1,3 @@
+# Ce dossier contient les fichiers CSV des annotations How2Sign
+# Colonnes attendues : video_id, sentence (traduction anglaise)
+# Téléchargez depuis : https://how2sign.github.io
