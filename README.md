@@ -8,11 +8,15 @@
 
 ## 👥 Équipe & Encadrement
 
-| Rôle | Nom |
-|------|-----|
-| 🎓 Étudiante | Amina Dourdi |
-| 🏫 Établissement | *(votre université)* |
-| 📅 Année | 2025 – 2026 |
+| Rôle | Nom | Filière | École |
+|------|-----|---------|-------|
+| 🎓 Étudiante | **Amina Dourdi** | Data Engineering | ENSAH |
+| 🎓 Étudiante | **Firdawss El Haddouchi** | Data Engineering | ENSAH |
+| 🎓 Étudiante | **Oumaima El Ghalbouni** | Data Engineering | ENSAH |
+
+> 🏫 **ENSAH** — École Nationale des Sciences Appliquées d'Al Hoceima  
+> 📅 **Année universitaire** : 2025 – 2026  
+> 📌 **Module** : Deep Learning — Projet de Fin d'Études (PFA)
 
 ---
 
