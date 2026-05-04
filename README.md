@@ -14,8 +14,13 @@
 | 🎓 Student | **Firdawss El Haddouchi** | Data Engineering | ENSAH |
 | 🎓 Student | **Oumaima El Ghalbouni** | Data Engineering | ENSAH |
 
+<<<<<<< HEAD
 > 🏫 **ENSAH** — National School of Applied Sciences of Al Hoceima  
 > 📅 **Academic Year** : 2025 – 2026  
+=======
+> 🏫 **ENSAH** — École Nationale des Sciences Appliquées d'Al Hoceima  
+> 📅 **Année universitaire** : 2025 – 2026  
+>>>>>>> 84447c95210514168783733bba0fd0b413c96668
 > 📌 **Module** : Deep Learning
 
 ---
