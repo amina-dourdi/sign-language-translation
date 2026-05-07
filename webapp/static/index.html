@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSLT Live - Sign Language Translator</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- MediaPipe Holistic -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    <div class="background-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <main class="container">
+        <header>
+            <h1>CSLT <span>Live</span></h1>
+            <p>Real-time American Sign Language Translation</p>
+        </header>
+
+        <div class="app-interface">
+            <!-- Video Section -->
+            <div class="video-container glass-panel">
+                <div class="video-wrapper">
+                    <!-- The actual video hidden, used for processing -->
+                    <video id="input_video" autoplay playsinline></video>
+                    <!-- Canvas for drawing the skeleton tracking -->
+                    <canvas id="output_canvas"></canvas>
+                </div>
+                
+                <div class="controls">
+                    <div class="status-indicator">
+                        <div class="dot pulsing"></div>
+                        <span id="status-text">Connecting camera...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Translation Section -->
+            <div class="translation-container glass-panel">
+                <h3>Live Translation</h3>
+                <div class="translation-box">
+                    <p id="translation-result" class="placeholder">Waiting for signs...</p>
+                </div>
+                
+                <div class="system-stats">
+                    <div class="stat">
+                        <span class="label">WebSocket</span>
+                        <span class="value" id="ws-status">Connecting...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
