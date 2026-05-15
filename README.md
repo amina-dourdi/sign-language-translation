@@ -2,7 +2,8 @@
 ### Academic Project — Deep Learning Module | Data Engineering
 
 > **Automatic translation of American Sign Language (ASL) into English text**  
-> from raw videos of the **How2Sign** dataset, using Transfer Learning from **PHOENIX-2014T**.
+> using pre-extracted **OpenPose keypoints** from the **How2Sign** dataset,
+> processed through a custom **Transformer Encoder-Decoder** model with Transfer Learning.
 
 ---
 
@@ -28,11 +29,12 @@
 4. [Tech Stack](#-tech-stack)
 5. [Project Structure](#-project-structure)
 6. [Phase 1 — Data Preprocessing](#-phase-1--data-preprocessing)
-7. [Phase 2 — Sanity Check](#-phase-2--sanity-check)
-8. [Phase 3 — Model Fine-Tuning](#-phase-3--model-fine-tuning)
+7. [Phase 2 — Training from Scratch](#-phase-2--training-from-scratch)
+8. [Phase 3 — Fine-Tuning](#-phase-3--fine-tuning-transfer-learning)
 9. [Phase 4 — Evaluation](#-phase-4--evaluation)
-10. [Installation & Usage](#-installation--usage)
-11. [Expected Results](#-expected-results)
+10. [Phase 5 — Real-Time Web Demo](#-phase-5--real-time-web-demo)
+11. [Installation & Usage](#-installation--usage)
+12. [Expected Results](#-expected-results)
 
 ---
 
@@ -40,16 +42,17 @@
 
 This project implements an end-to-end **Continuous Sign Language Translation (CSLT)** system. The goal is to take a video of a person signing in **ASL (American Sign Language)** and automatically generate the **corresponding English sentence**.
 
-### Main Constraint
-> ❌ No manual assembly of encoders and decoders from different repositories.  
-> ✅ Use a **pre-trained End-to-End model** (SignJoey on PHOENIX-2014T) adapted through **Fine-Tuning** to How2Sign.
-
-### Key Technical Choice: Key-points Instead of Raw Videos
-Instead of feeding raw video frames (very heavy) into a CNN, we use **Google MediaPipe Holistic** to extract **skeleton key-points** (hands, body, face) from each frame. This allows us to:
+### Key Technical Choice: Keypoints Instead of Raw Videos
+Instead of feeding raw video frames (very heavy) into a CNN, we use **pre-extracted OpenPose keypoints** (hands, body, face) from each frame. This allows us to:
 - ✅ Reduce storage from ~50 GB to ~500 MB
 - ✅ Train on a regular CPU / free Google Colab
 - ✅ Deploy in real-time on a web platform (no GPU required)
 - ✅ Make the model insensitive to clothing color or background
+
+### Training Strategy
+1. **Train from scratch** on How2Sign train set → produces `best_model_v3.pth`
+2. **Fine-tune** with frozen encoder (Transfer Learning) → produces `finetuned_model.pth`
+3. **Evaluate** on the official How2Sign test set → BLEU scores
 
 ---
 
@@ -60,81 +63,77 @@ Instead of feeding raw video frames (very heavy) into a CNN, we use **Google Med
 │                      FULL PROJECT PIPELINE                       │
 └─────────────────────────────────────────────────────────────────┘
 
-  [INPUT]  Raw video .mp4 (How2Sign — ASL)
+  [INPUT]  OpenPose JSON keypoints (How2Sign — ASL — B-F-H 2D)
       │
       ▼
   ┌─────────────────────────────────────┐
-  │  PHASE 1 : DATA PREPROCESSING       │  (preprocessing.py)
+  │  PHASE 1 : DATA PREPROCESSING       │  (preprocess_all_splits.py)
   │                                     │
-  │  1. Video cleaning & validation     │
-  │  2. MediaPipe Holistic              │  ← REPLACES the CNN
-  │     → 543 keypoints × 3 coords     │
-  │     → Format [T, 1629]             │
-  │  3. Z-score normalization           │
-  │  4. Padding/Truncation → [200,1629] │
-  │  5. Save as .npy files              │
-  │  6. Text tokenization               │
-  │     → 15,000-word vocabulary       │
+  │  1. Read OpenPose JSON files        │
+  │     → 137 keypoints × 3 coords     │
+  │     → 411 features per frame       │
+  │  2. Z-score normalization           │
+  │  3. Padding/Truncation → [150, 411]│
+  │  4. Save as .npy files              │
+  │  5. Text tokenization               │
+  │     → 10,000-word vocabulary       │
+  │  6. Split: Train / Val / Test       │
   └─────────────────────────────────────┘
       │
       ▼  .npy files + token indices
   ┌─────────────────────────────────────┐
-  │  PHASE 2 : MODEL (Fine-Tuning)      │  (fine_tune_cslt.py)
+  │  PHASE 2+3 : MODEL                  │  (train_colab.py / finetune_colab.py)
   │                                     │
   │  ┌─────────────────────────────┐    │
-  │  │ Keypoint Embedding Layer    │    │  🆕 New layer
-  │  │ Linear(1629 → 512)          │    │  Trained from scratch
+  │  │ Keypoint Projection Layer   │    │  Linear(411 → 256)
+  │  │ + LayerNorm + Dropout       │    │  + Temporal CNN
   │  └────────────┬────────────────┘    │
   │               ▼                     │
   │  ┌─────────────────────────────┐    │
-  │  │ Transformer Encoder         │    │  ❄️ FROZEN
-  │  │ (SignJoey — PHOENIX-2014T)  │    │  Pre-trained weights
-  │  │ 6 layers, 8 heads           │    │  kept intact
+  │  │ 1D Temporal CNN             │    │  Captures local motion
+  │  │ (2 conv layers + residual)  │    │  patterns between frames
+  │  └────────────┬────────────────┘    │
+  │               ▼                     │
+  │  ┌─────────────────────────────┐    │
+  │  │ Transformer Encoder         │    │  ❄️ FROZEN (fine-tuning)
+  │  │ 3 layers, 4 heads, d=256   │    │  or trainable (scratch)
   │  └────────────┬────────────────┘    │
   │               ▼                     │
   │  ┌─────────────────────────────┐    │
   │  │ Transformer Decoder         │    │  🔥 FINE-TUNED
-  │  │ (SignJoey — PHOENIX-2014T)  │    │  lr = 1e-5
-  │  │ Cross-Attention             │    │
+  │  │ 3 layers, 4 heads, d=256   │    │  lr = 5e-5
+  │  │ + Cross-Attention           │    │
   │  └────────────┬────────────────┘    │
   │               ▼                     │
   │  ┌─────────────────────────────┐    │
-  │  │ Vocabulary Classifier       │    │  🆕 REPLACED
-  │  │ Linear(512 → 15,000)        │    │  How2Sign vocabulary
+  │  │ Output Projection           │    │  Linear(256 → vocab_size)
+  │  │ → English word prediction  │    │  Greedy decoding + rep penalty
   │  └─────────────────────────────┘    │
   └─────────────────────────────────────┘
       │
       ▼
-  [OUTPUT]  English sentence: "The woman is walking to school"
+  [OUTPUT]  English sentence: "the woman is walking to school"
 ```
 
 ### Legend
 | Symbol | Meaning |
 |--------|---------|
-| ❄️ FROZEN | Pre-trained weights from PHOENIX-2014T, never modified |
-| 🔥 FINE-TUNED | Pre-trained weights updated slowly (lr = 1e-5) |
-| 🆕 NEW | Randomly initialized layer, fully trained on How2Sign |
+| ❄️ FROZEN | Encoder weights frozen during fine-tuning |
+| 🔥 FINE-TUNED | Decoder weights updated with small lr (5e-5) |
 
 ---
 
 ## 📦 Datasets Used
 
-### 1. How2Sign (Main Dataset — Fine-Tuning)
+### How2Sign (Main Dataset)
 | Property | Value |
 |----------|-------|
 | Language | ASL — American Sign Language |
 | Content | ~35,000 signed sentences |
-| Video storage | ~50 GB |
-| Annotation format | `.csv` (English sentences) |
+| Splits | Train (~16K), Val (~2K), Test (~2.3K) |
+| Keypoints | B-F-H 2D OpenPose (pre-extracted) |
+| Annotations | English translations (TSV/CSV) |
 | Link | [how2sign.github.io](https://how2sign.github.io) |
-
-### 2. PHOENIX-2014T (Pre-trained Model Dataset)
-| Property | Value |
-|----------|-------|
-| Language | DGS — Deutsche Gebärdensprache (German Sign Language) |
-| Content | ~8,000 sentences (weather forecasts) |
-| Used for | Pre-training SignJoey |
-| Link | [phoenix.ira.uka.de](https://www-i6.informatik.rwth-aachen.de/~koller/RWTH-PHOENIX/) |
 
 ---
 
@@ -143,11 +142,13 @@ Instead of feeding raw video frames (very heavy) into a CNN, we use **Google Med
 | Domain | Technology | Role |
 |--------|-----------|------|
 | Deep Learning | **PyTorch** | Main framework |
-| Architecture | **SignJoey** (`neccam/slt`) | Pre-trained Seq2Seq model |
-| Keypoint Extraction | **Google MediaPipe Holistic** | Replaces the CNN |
-| Vision | **OpenCV** | Reading videos frame by frame |
-| Data | **NumPy** | Saving key-points (.npy files) |
-| Evaluation | **SacreBLEU** | Translation metric |
+| Architecture | Custom **Transformer Encoder-Decoder** | Seq2Seq translation |
+| Temporal Feature | **1D Temporal CNN** | Local motion pattern extraction |
+| Keypoint Format | **OpenPose** (B-F-H 2D) | Pre-extracted from How2Sign |
+| Data | **NumPy** | Keypoint storage (.npy files) |
+| Evaluation | **BLEU** (custom) | Translation quality metric |
+| Web Backend | **FastAPI** + **WebSocket** | Real-time inference server |
+| Web Frontend | **MediaPipe Holistic** | Browser keypoint extraction |
 | Environment | **Python 3.9+** | Development language |
 
 ---
@@ -157,65 +158,63 @@ Instead of feeding raw video frames (very heavy) into a CNN, we use **Google Med
 ```
 sign-language-translation/
 │
-├── 📄 README.md                             ← This file
-├── 📄 requirements.txt                      ← Python dependencies
+├── 📄 README.md                        ← This file
+├── 📄 requirements.txt                 ← Python dependencies
 ├── 📄 .gitignore
-├── 🔬 sanity_check.py                       ← Validate architecture (no dataset needed)
 │
-├── 📂 data_pipeline/    ── PHASE A : Dataset Pipeline
-│   ├── preprocessing.py                     ← Extract MediaPipe keypoints from videos
-│   ├── tokenizer.py                         ← Build vocabulary & encode sentences
-│   ├── dataset.py                           ← PyTorch Dataset (loads .npy + labels)
-│   └── dataloader.py                        ← Train / Val / Test DataLoaders
+├── 📄 train_colab.py                   ← PHASE 2: Training from scratch
+│                                         (Model + Tokenizer + Dataset + BLEU)
+├── 📄 finetune_colab.py                ← PHASE 3: Fine-tuning with frozen encoder
+│                                         (Transfer Learning + official splits)
+├── 📄 preprocess_all_splits.py         ← PHASE 1: Preprocessing (JSON → .npy)
+│                                         (Handles train/val/test separately)
 │
-├── 📂 model/            ── PHASE B : Model Architecture
-│   ├── positional_encoding.py               ← Sin/cos positional encoding
-│   ├── encoder_wrapper.py                   ← SignJoey Encoder ❄️ FROZEN
-│   ├── decoder_wrapper.py                   ← SignJoey Decoder 🔥 + classifier 🆕
-│   └── cslt_model.py                        ← Full CSLT model (main class)
+├── 📂 data_pipeline/                   ← Reusable preprocessing modules
+│   ├── __init__.py
+│   ├── preprocessing.py                ← OpenPose JSON reader + normalization
+│   └── tokenizer.py                    ← Word-level tokenizer (modular version)
 │
-├── 📂 training/         ── PHASE C : Training & Evaluation
-│   ├── train.py                             ← Main fine-tuning loop
-│   ├── loss.py                              ← CrossEntropyLoss (ignores PAD tokens)
-│   ├── metrics.py                           ← BLEU-1 and BLEU-4 score computation
-│   └── inference.py                         ← Translate a new video (production)
+├── 📂 data/                            ← Data (not tracked in Git)
+│   ├── annotations/                    ← How2Sign CSV files
+│   │   ├── how2sign_realigned_train.csv
+│   │   ├── how2sign_realigned_val.csv
+│   │   └── how2sign_realigned_test.csv
+│   ├── keypoints/                      ← OpenPose JSON keypoints
+│   │   ├── json/                       ← Train clips
+│   │   ├── json_val/                   ← Validation clips
+│   │   └── json_test/                  ← Test clips
+│   ├── raw/                            ← Original videos (.mp4)
+│   │   ├── video/                      ← Train videos
+│   │   ├── video_val/                  ← Validation videos
+│   │   └── video_test/                 ← Test videos
+│   └── processed/                      ← Generated files
+│       ├── metadata.json               ← Clip metadata with split labels
+│       ├── tokenizer.json              ← Saved vocabulary
+│       └── keypoints/                  ← Preprocessed .npy files
 │
-├── 📂 notebooks/        ── Exploration & Analysis
-│   ├── 01_data_exploration.ipynb            ← Explore How2Sign dataset
-│   ├── 02_keypoint_extraction_demo.ipynb    ← Visualize MediaPipe skeleton
-│   ├── 03_sanity_check.ipynb               ← Interactive architecture validation
-│   └── 04_evaluation.ipynb                 ← Training curves & BLEU analysis
+├── 📂 checkpoints/                     ← Model weights (not tracked in Git)
+│   ├── best_model_v3.pth              ← Pre-trained model (training from scratch)
+│   ├── finetuned_model.pth            ← Fine-tuned model (final)
+│   └── history_v3.json                ← Training metrics history
 │
-├── 📂 data/             ── Raw Data (not versioned in Git)
-│   ├── raw/                                 ← How2Sign videos (.mp4)
-│   ├── keypoints/                           ← Extracted .npy files (one per video)
-│   └── annotations/                         ← English translation .csv files
+├── 📂 webapp/                          ← Real-time web demo
+│   ├── app.py                          ← FastAPI backend (WebSocket)
+│   └── static/
+│       ├── index.html                  ← Frontend interface
+│       ├── app.js                      ← MediaPipe + WebSocket client
+│       └── style.css                   ← Glassmorphism design
 │
-├── 📂 checkpoints/      ── Model Weights (not versioned in Git)
-│   ├── phoenix14t.ckpt                      ← Pre-trained SignJoey (PHOENIX-2014T)
-│   └── best_model_how2sign.pth             ← Best fine-tuned model on How2Sign
-│
-└── 📂 outputs/          ── Results
-    └── predictions.txt                      ← Generated translations (for BLEU)
+└── 📂 docs/                            ← Documentation & diagrams
+    ├── architecture.png
+    └── arch-1.png
 ```
 
 ---
 
-## ⚙️ Phase 1 — Data Preprocessing (PHASE A)
+## ⚙️ Phase 1 — Data Preprocessing
 
-> **Package:** `data_pipeline/`  
-> **Data required:** ✅ How2Sign B-F-H 2D Keypoints (test set: 1.6 GB)
-
-We use the **pre-extracted OpenPose keypoints** provided by How2Sign (B-F-H = Body, Face, Hands). This avoids downloading the 290 GB raw videos.
-
-### Files in this phase
-
-| File | Role |
-|------|------|
-| `data_pipeline/preprocessing.py` | Read OpenPose JSON files, normalize, pad to 150 frames, save as `.npy` |
-| `data_pipeline/tokenizer.py` | Build English vocabulary (10,000 words), encode/decode sentences |
-| `data_pipeline/dataset.py` | PyTorch Dataset class (loads `.npy` + tokenized labels) |
-| `data_pipeline/dataloader.py` | Create Train / Val / Test DataLoaders (80/10/10 split) |
+> **Script:** `preprocess_all_splits.py`  
+> **Input:** OpenPose JSON keypoints from How2Sign (B-F-H 2D)
 
 ### Keypoint Format (OpenPose)
 | Keypoint Group | Count | Features |
@@ -227,124 +226,105 @@ We use the **pre-extracted OpenPose keypoints** provided by How2Sign (B-F-H = Bo
 | **Total per frame** | **137 keypoints** | **411 features** |
 
 ### Pipeline Steps
-1. **Read** OpenPose JSON files from each clip folder
+1. **Read** OpenPose JSON files from each clip folder (train/val/test)
 2. **Normalize** with Z-score standardization
 3. **Pad/Truncate** all clips to **150 frames** → shape `[150, 411]`
 4. **Save** as `.npy` files in `data/processed/keypoints/`
-5. **Build vocabulary** from English annotations (special tokens: `<PAD>=0`, `<SOS>=1`, `<EOS>=2`, `<UNK>=3`)
+5. **Build vocabulary** from English annotations
+6. **Generate** `metadata.json` with split labels (train/val/test)
 
 ### Execute
 ```bash
-# Step 1: Preprocess keypoints
-python -m data_pipeline.preprocessing
-
-# Step 2: Build tokenizer vocabulary
-python -m data_pipeline.tokenizer
+python preprocess_all_splits.py
 ```
 
 ---
 
-## 🔬 Phase 2 — Sanity Check
+## 🏋️ Phase 2 — Training from Scratch
 
-> **File:** `sanity_check.py`  
-> **Data required:** ❌ None — uses randomly generated data
+> **Script:** `train_colab.py`  
+> **Output:** `checkpoints/best_model_v3.pth`
 
-Validates that the architecture works correctly **before** any training.
+Trains the full Transformer model from random initialization.
 
+### Model Architecture
+
+| Component | Details |
+|-----------|---------|
+| Input Projection | Linear(411 → 256) + LayerNorm + Dropout |
+| Temporal CNN | 2× Conv1D (kernel=3) + GELU + Residual |
+| Encoder | 3 layers, 4 heads, d_model=256, ff=512 |
+| Decoder | 3 layers, 4 heads, d_model=256, ff=512 |
+| Output | Linear(256 → vocab_size) |
+
+### Training Configuration
+```python
+EPOCHS              = 60
+BATCH_SIZE          = 8
+ACCUMULATION_STEPS  = 4        # Effective batch = 32
+LEARNING_RATE       = 5e-4
+OPTIMIZER           = AdamW (weight_decay=5e-4)
+SCHEDULER           = WarmupCosine (300 warmup steps)
+LOSS                = CrossEntropyLoss(ignore_index=0, label_smoothing=0.1)
+GRADIENT_CLIPPING   = max_norm=0.5
+```
+
+### Execute
 ```bash
-python sanity_check.py
-```
-
-### Tests Performed
-
-| # | Test | What it checks | Success Condition |
-|---|------|---------------|-------------------|
-| 1 | **Forward Pass** | Tensor dimensions through all layers | `logits.shape == [4, 19, 500]` |
-| 2 | **Overfit Batch** | Backpropagation and gradient flow | Loss decreases > 50% in 50 steps |
-| 3 | **Encoder Freeze** | Transfer learning freeze mechanism | Encoder params unchanged after training step |
-| 4 | **Greedy Decoding** | Autoregressive inference pipeline | Generated sequence starts with `<SOS>` |
-| 5 | **Parameter Count** | Trainable vs frozen parameters | Trainable < total after freeze |
-
-### Expected Output
-```
-╔═══════════════════════════════════════════════════════╗
-║           FINAL SUMMARY                               ║
-╠═══════════════════════════════════════════════════════╣
-║  ✅ PASS  │  Forward Pass                             ║
-║  ✅ PASS  │  Overfit Batch                            ║
-║  ✅ PASS  │  Encoder Freeze                           ║
-║  ✅ PASS  │  Greedy Decoding                          ║
-║  ✅ PASS  │  Parameter Count                          ║
-╠═══════════════════════════════════════════════════════╣
-║   🎉 ALL TESTS PASSED — Architecture is valid!       ║
-╚═══════════════════════════════════════════════════════╝
+python train_colab.py            # Start training
+python train_colab.py --resume   # Resume from checkpoint
 ```
 
 ---
 
-## 🚀 Phase 3 — Model Fine-Tuning (PHASE B + C)
+## 🎯 Phase 3 — Fine-Tuning (Transfer Learning)
 
-> **Package:** `model/` + `training/`  
-> **Data required:** ✅ Preprocessed `.npy` files from Phase 1
+> **Script:** `finetune_colab.py`  
+> **Input:** `checkpoints/best_model_v3.pth`  
+> **Output:** `checkpoints/finetuned_model.pth`
 
-### Model Architecture (PHASE B)
-
-| File | Component | Role |
-|------|-----------|------|
-| `model/positional_encoding.py` | Positional Encoding | Sin/cos temporal signals for Transformer |
-| `model/encoder_wrapper.py` | Encoder ❄️ | Keypoint embedding + Transformer Encoder (FROZEN) |
-| `model/decoder_wrapper.py` | Decoder 🔥 | Token embedding + Transformer Decoder + Output |
-| `model/cslt_model.py` | Full CSLT Model | Assembles all components into one module |
+Fine-tunes the pre-trained model by **freezing the encoder** and only updating the decoder with a small learning rate. Uses official How2Sign splits (train/val/test).
 
 ### Transfer Learning Strategy
 
 | Component | Strategy | Learning Rate |
 |-----------|----------|---------------|
-| Keypoint Embedding | 🆕 Trained from scratch | `1e-4` |
-| Transformer Encoder | ❄️ Frozen | `0` (not updated) |
-| Transformer Decoder | 🔥 Fine-tuned | `1e-4` |
-| Output Projection | 🆕 New (10,000 English classes) | `1e-4` |
+| Input Projection | ❄️ Frozen | 0 |
+| Temporal CNN | ❄️ Frozen | 0 |
+| Transformer Encoder | ❄️ Frozen | 0 |
+| Transformer Decoder | 🔥 Fine-tuned | 5e-5 |
+| Output Projection | 🔥 Fine-tuned | 5e-5 |
 
-### Training Pipeline (PHASE C)
-
-| File | Role |
-|------|------|
-| `training/train.py` | Main training loop with validation + early stopping |
-| `training/loss.py` | CrossEntropyLoss (ignores `<PAD>`, label smoothing) |
-| `training/metrics.py` | BLEU-1 to BLEU-4 score computation |
-| `training/inference.py` | Translate new videos (production/demo mode) |
-
-### Training Configuration
+### Fine-Tuning Configuration
 ```python
-EPOCHS              = 30
+EPOCHS              = 15
 BATCH_SIZE          = 8
-ENCODER_LR          = 1e-5       # Slow (pre-trained)
-DECODER_LR          = 1e-4       # Fast (new layers)
-OPTIMIZER           = AdamW
+ACCUMULATION_STEPS  = 4
+LEARNING_RATE       = 5e-5      # 10× smaller than training
+OPTIMIZER           = AdamW (weight_decay=1e-4)
 LOSS                = CrossEntropyLoss(ignore_index=0, label_smoothing=0.1)
-SCHEDULER           = ReduceLROnPlateau(patience=3)
-EARLY_STOPPING      = patience=5
-GRADIENT_CLIPPING   = max_norm=1.0
+GRADIENT_CLIPPING   = max_norm=0.5
 ```
 
 ### Execute
 ```bash
-# Launch training
-python -m training.train
-
-# Run inference on a single file
-python -m training.inference --input data/processed/keypoints/clip.npy
-
-# Run inference on a directory
-python -m training.inference --input data/processed/keypoints/
+python finetune_colab.py
 ```
 
 ---
 
 ## 📊 Phase 4 — Evaluation
 
-The model is evaluated automatically at the end of training using the **BLEU score**:
+The model is evaluated automatically at the end of both training and fine-tuning using **BLEU scores** and **accuracy** on the test set.
 
+### Metrics
+| Metric | Description |
+|--------|-------------|
+| Test Loss | CrossEntropy loss on test set |
+| Test Accuracy | Token-level prediction accuracy |
+| BLEU-1 to BLEU-4 | Translation quality (n-gram overlap) |
+
+### BLEU Score Interpretation
 | BLEU-4 Score | Interpretation |
 |-------------|----------------|
 | < 10 | Incomprehensible translation |
@@ -353,6 +333,29 @@ The model is evaluated automatically at the end of training using the **BLEU sco
 | > 30 | High-quality translation |
 
 > 📌 State-of-the-art CSLT models on PHOENIX-2014T achieve ~25 BLEU-4.
+
+---
+
+## 🌐 Phase 5 — Real-Time Web Demo
+
+> **Backend:** `webapp/app.py` (FastAPI + WebSocket)  
+> **Frontend:** `webapp/static/` (HTML + JS + CSS)
+
+The web application provides real-time ASL translation using the webcam:
+1. **Browser** captures video via webcam
+2. **MediaPipe Holistic** extracts 411 keypoints per frame (client-side)
+3. **WebSocket** sends keypoints to FastAPI backend
+4. **Model** translates accumulated frames into English
+5. **Translation** is displayed in real-time
+
+### Execute
+```bash
+# Start the web server
+uvicorn webapp.app:app --reload --host 0.0.0.0 --port 8000
+
+# Open in browser
+# http://localhost:8000
+```
 
 ---
 
@@ -378,25 +381,22 @@ pip install -r requirements.txt
 
 ### 4. Download Data
 Download from [How2Sign](https://how2sign.github.io):
-- **B-F-H 2D Keypoints clips (frontal view)** → TEST (1.6 GB) → place in `data/keypoints/`
-- **English Translation (manually re-aligned)** → TEST (424K) → place in `data/annotations/`
+- **B-F-H 2D Keypoints** (Train/Val/Test) → place in `data/keypoints/json/`, `json_val/`, `json_test/`
+- **English Translation CSV** (Train/Val/Test) → place in `data/annotations/`
 
 ### 5. Complete Execution Pipeline
 ```bash
-# STEP 0: Validate architecture (no data needed)
-python sanity_check.py
+# STEP 1: Preprocess keypoints (JSON → .npy) for all splits
+python preprocess_all_splits.py
 
-# STEP 1: Preprocess keypoints (JSON → .npy)
-python -m data_pipeline.preprocessing
+# STEP 2: Train the model from scratch (on Colab recommended)
+python train_colab.py
 
-# STEP 2: Build vocabulary
-python -m data_pipeline.tokenizer
+# STEP 3: Fine-tune with frozen encoder
+python finetune_colab.py
 
-# STEP 3: Train the model
-python -m training.train
-
-# STEP 4: Translate new videos
-python -m training.inference --input data/processed/keypoints/
+# STEP 4: Launch the real-time web demo
+uvicorn webapp.app:app --reload --port 8000
 ```
 
 ---
@@ -406,9 +406,10 @@ python -m training.inference --input data/processed/keypoints/
 By the end of the project, the system should be able to:
 
 1. **Take as input** pre-extracted keypoints from an ASL video
-2. **Process** the skeleton key-points through a Transformer encoder
+2. **Process** the skeleton keypoints through Temporal CNN + Transformer Encoder
 3. **Translate** the sequence of movements into a coherent English sentence
-4. **Evaluate** translation quality using BLEU-4 score
+4. **Evaluate** translation quality using BLEU scores
+5. **Demonstrate** real-time translation via webcam in a web browser
 
 ### Example
 ```
@@ -423,9 +424,9 @@ BLEU-4 : ~22 (project target)
 
 - **Camgoz et al. (2020)** — *Sign Language Transformers: Joint End-to-end Sign Language Recognition and Translation* — [arxiv.org/abs/2003.13830](https://arxiv.org/abs/2003.13830)
 - **How2Sign Dataset** — [how2sign.github.io](https://how2sign.github.io)
-- **SignJoey (neccam/slt)** — [github.com/neccam/slt](https://github.com/neccam/slt)
 - **OpenPose** — [github.com/CMU-Perceptual-Computing-Lab/openpose](https://github.com/CMU-Perceptual-Computing-Lab/openpose)
-- **PHOENIX-2014T** — [RWTH Aachen University](https://www-i6.informatik.rwth-aachen.de/~koller/RWTH-PHOENIX/)
+- **MediaPipe Holistic** — [google.github.io/mediapipe](https://google.github.io/mediapipe/)
+- **PyTorch** — [pytorch.org](https://pytorch.org)
 
 ---
 

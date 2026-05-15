@@ -1,3 +1,0 @@
-# Ce dossier contiendra les prédictions générées par le modèle
-# Fichier : predictions.txt (une traduction par ligne)
-# Utilisé pour calculer le score BLEU avec sacrebleu

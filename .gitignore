@@ -1,19 +1,42 @@
-# Environnements et caches Python
+# =============================================
+# .gitignore — Sign Language Translation Project
+# =============================================
+
+# Python
 __pycache__/
 *.py[cod]
+*.pyo
 .venv/
 venv/
+*.egg-info/
+dist/
+build/
 
-# Build Java / Spring Boot
-target/
-*.class
-
-# Variables d'environnement et IDE
-.env
+# IDE
 .idea/
 .vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Logs
 *.log
 
-test/
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Project — Large data files (not tracked in git)
 data/
 checkpoints/
+*.pth
+*.npy
+
+# Temporary
+test/
+outputs/
+notebooks/
